@@ -1,71 +1,128 @@
-import express from "express"
-import User from '../models/userModel.js';
+import express from "express";
+import User from "../models/userModel.js";
 import Country from "../models/countryModel.js";
 import State from "../models/stateModel.js";
-import City from "../models/cityModel.js"
+import City from "../models/cityModel.js";
+
 const router = express.Router();
 
-
 // GET all users
-router.get('/', async (req, res) => {
-    const users = await User.find();
-    res.json(users);
+router.get("/", async (req, res) => {
+  try {
+    const userData = await User.find();
+    if (!userData || userData.length === 0) {
+      return res.status(404).json({ message: "user data not found" });
+    }
+    res.status(200).json(userData);
+  } catch (error) {
+    res.status(500).json({ success: false, message: "server error" });
+  }
 });
 
-// POST a new user
-router.post('/', async (req, res) => {
-    const { name, email, address } = req.body;
-    const newUser = new User({ name, email, address });
-    await newUser.save();
-    res.status(201).json(newUser);
+// get user by specific id
+router.get("/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const userExist = await User.findById(id);
+    if (!userExist) {
+      return res.status(404).json({ message: "user not found" });
+    }
+    res.status(200).json({ userExist, message: "user exist" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "server error" });
+  }
+});
+
+// CREATE a new user
+router.post("/", async (req, res) => {
+  const field = req.body;
+
+  if (!field.name || !field.email || !field.address) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Please provide all fields" });
+  }
+
+  try {
+    const newUser = new User(req.body);
+    const { email } = newUser;
+
+    const userExist = await User.findOne({ email });
+    if (userExist) {
+      return res.status(400).json({ message: "User already exist" });
+    }
+
+    const savedData = await newUser.save();
+    res.status(200).json(savedData);
+  } catch (error) {
+    res.status(500).json({ errorMessage: error.message });
+  }
 });
 
 // PUT - Update a user
-router.put('/:id', async (req, res) => {
-    const { id } = req.params;
-    const updatedUser = await User.findByIdAndUpdate(id, req.body, { new: true });
-    res.json(updatedUser);
+router.put("/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const userExist = await User.findById(id);
+    if (!userExist) {
+      return res.status(404).json({ message: "User Not Found." });
+    }
+
+    const updatedData = await User.findByIdAndUpdate(id, req.body, {
+      new: true,
+    });
+    // res.status(200).json(updatedData);
+    res.status(200).json({ message: "User Updated Successfully." });
+  } catch (error) {
+    res.status(500).json({ errorMessage: error.message });
+  }
 });
 
 // DELETE a user
-router.delete('/:id', async (req, res) => {
-    const { id } = req.params;
+router.delete("/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const userExist = await User.findById(id);
+    if (!userExist) {
+      return res.status(404).json({ message: "User Not Found." });
+    }
     await User.findByIdAndDelete(id);
-    res.json({ message: 'User deleted' });
+    res.status(201).json({ message: "User deleted successfully." });
+  } catch (error) {
+    res.status(500).json({ errorMessage: error.message });
+  }
 });
 
+// get all countries
+router.get("/get-countries", async (req, res) => {
+  try {
+    const countries = await Country.find({});
+    res.status(200).json(countries);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching countries", error });
+  }
+});
 
-router.get('/get-countries', async (req, res) => {
-    try {
-        const countries = await Country.find({});
-        res.status(200).send({ success: true, msg: "Countries data", data: countries })
-    } catch (error) {
-        res.status(400).send({ success: false, msg: error.message })
-    }
-})
+// Get states by country short name
+router.get("/states/:countryShortName", async (req, res) => {
+  const { countryShortName } = req.params;
+  try {
+    const states = await State.find({ country_short_name: countryShortName });
+    res.status(200).json(states);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching states", error });
+  }
+});
 
-router.get('/get-states', async (req, res) => {
-    try {
-        const states = await State.find({});
-        res.status(200).send({ success: true, msg: "states data", data: states })
-    } catch (error) {
-
-        res.status(400).send({ success: false, msg: error.message })
-    }
-})
-
-router.get('/get-cities', async (req, res) => {
-    try {
-        const cities = await City.find({});
-        res.status(200).send({ success: true, msg: "states data", data: cities })
-    } catch (error) {
-
-        res.status(400).send({ success: false, msg: error.message })
-    }
-})
-
-
-
-
+// Get City by state Name   
+router.get("/cities", async (req, res) => {
+//   const { stateName } = req.params;
+  try {
+    const cities = await City.find();
+    res.status(200).json(cities);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching City", error });
+  }
+});
 
 export default router;
